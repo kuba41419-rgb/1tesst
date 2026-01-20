@@ -35,7 +35,7 @@ const client = new Client({
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-client.once('ready', (c) => {
+client.once('clientReady', (c) => {
     console.log(`✅ Logged in as ${c.user.tag}!`);
 
     // Dynamic Status Logic
@@ -722,10 +722,10 @@ client.on('messageCreate', async (message) => {
 });
 
 // --- REAL-TIME PRODUCT SYNC ---
-const subscribeProductSync = () => {
+const subscribeProductSync = (retries = 3) => {
     console.log('📡 Starting Real-time Product Sync listener...');
 
-    supabase
+    const channel = supabase
         .channel('products-sync')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'products' }, (payload) => {
             console.log('✨ Received Real-time event for new product:', payload.new.title);
@@ -752,10 +752,17 @@ const subscribeProductSync = () => {
             } else {
                 console.log('⚠️ SHOP_INFO_CHANNEL_ID not found or bot lacks access to it.');
             }
-        })
-        .subscribe((status) => {
-            console.log('📊 Real-time Sync Status:', status);
         });
+
+    channel.subscribe((status, err) => {
+        console.log('📊 Real-time Sync Status:', status);
+        if (err) console.error('❌ Real-time Sync Error:', err.message);
+
+        if (status === 'TIMED_OUT' && retries > 0) {
+            console.log(`🔄 Retrying subscription... (${retries} attempts left)`);
+            setTimeout(() => subscribeProductSync(retries - 1), 5000);
+        }
+    });
 };
 
 
