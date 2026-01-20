@@ -33,7 +33,14 @@ const client = new Client({
     ],
 });
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    realtime: {
+        params: {
+            eventsPerSecond: 10,
+        },
+        timeout: 40000, // Increase timeout to 40s
+    }
+});
 
 client.once('clientReady', (c) => {
     console.log(`✅ Logged in as ${c.user.tag}!`);
